@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+draft_state.json
+
+frontend/node_modules/
+frontend/dist/

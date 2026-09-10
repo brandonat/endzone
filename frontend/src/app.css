@@ -1,0 +1,273 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --bg: #0f1115;
+  --panel: #171a21;
+  --border: #2a2f3a;
+  --text: #e8eaed;
+  --muted: #9aa2af;
+  --accent: #4f8cff;
+  --up: #3fbf5f;
+  --down: #e05555;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sidebar .card {
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0 0 24px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.inflation {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.inflation .value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.inflation .label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.inflation.up .value {
+  color: var(--up);
+}
+
+.inflation.down .value {
+  color: var(--down);
+}
+
+.budget-row {
+  display: flex;
+  gap: 24px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+form.pick-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 140px;
+}
+
+.field label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+input,
+select {
+  background: #0d0f14;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+}
+
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  color: var(--down);
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+td.delta.up {
+  color: var(--up);
+}
+
+td.delta.down {
+  color: var(--down);
+}
+
+.empty {
+  color: var(--muted);
+  padding: 16px 0;
+}
+
+input.manager-name {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px 6px;
+  width: 100%;
+  font-weight: 600;
+}
+
+input.manager-name:hover,
+input.manager-name:focus {
+  border-color: var(--border);
+  background: #0d0f14;
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.managers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.manager + .manager {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.manager-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.manager-budget {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.manager-teams {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.manager-teams li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #0d0f14;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px 3px 10px;
+  font-size: 0.8rem;
+}
+
+.team-tag {
+  font-weight: 600;
+}
+
+.team-price {
+  color: var(--muted);
+}
+
+.empty.small {
+  padding: 4px 0 0;
+  font-size: 0.85rem;
+}
+
+tr.drafted td:not(.owner) {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+tr.drafted td.owner {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
