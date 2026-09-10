@@ -37,7 +37,7 @@ The included `schedule_2026.csv` is the provided 4for4 regular-season grid. Run 
 python3 fantasy_auction_simulator.py --schedule schedule_2026.csv --sims 10000
 ```
 
-It starts with the supplied Elo ratings, simulates season results, and converts expected scoring into a budget-neutral fair-value board.  Since the league has 9 x $100 = $900 total purchasing power, the fair board sums to exactly $900.  That is a useful anchor: if a top team costs $65, you need an explicit reason why its portfolio advantage is worth taking $25-plus away from your remaining teams.
+It starts with the supplied Elo ratings, simulates season results, and converts expected scoring into a budget-neutral fair-value board.  Since the league has 8 x $100 = $800 total purchasing power, the fair board sums to exactly $800.  That is a useful anchor: if a top team costs $65, you need an explicit reason why its portfolio advantage is worth taking $25-plus away from your remaining teams.
 
 ## Why this is a better starting point than “buy the best team”
 
@@ -76,13 +76,13 @@ The simulator deliberately separates **objective fair values** from a price fore
 
 ## Simulate entire auctions
 
-Add `--auction-sims` to simulate the actual 32 nominations and report the team-count and expected-score distribution for the nine managers:
+Add `--auction-sims` to simulate the actual 32 nominations and report the team-count and expected-score distribution for the eight managers:
 
 ```sh
 python3 fantasy_auction_simulator.py --schedule schedule_2026.csv --sims 10000 --auction-sims 10000
 ```
 
-The auction model draws a random nine-manager nomination order and repeats it until all 32 teams are nominated. Five managers therefore nominate four teams and four nominate three. Each manager has a noisy valuation of a team, maintains a cash reserve for later teams, and pays one bid increment above the runner-up. It is a symmetric baseline: its generic “representative manager” should be read as what an evenly skilled room looks like, not a prediction of a particular opponent.
+The auction model draws a random eight-manager nomination order and repeats it until all 32 teams are nominated, so each manager nominates exactly four. Each manager has a noisy valuation of a team, maintains a cash reserve for later teams, and pays one bid increment above the runner-up. It is a symmetric baseline: its generic “representative manager” should be read as what an evenly skilled room looks like, not a prediction of a particular opponent.
 
 ## Which portfolios actually win?
 

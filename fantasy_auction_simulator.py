@@ -32,7 +32,7 @@ RATINGS: Dict[str, int] = {
     "NYJ":1386,"CAR":1380,
 }
 
-PLAYERS, STARTING_BUDGET, GAMES = 9, 100.0, 17
+PLAYERS, STARTING_BUDGET, GAMES = 8, 100.0, 17
 HOME_FIELD_ELO = 55  # change to 0 for fully neutral game simulations
 TOTAL_LEAGUE_BUDGET = PLAYERS * STARTING_BUDGET
 
@@ -207,8 +207,9 @@ class Owner:
 def auction_once(board: Dict[str, float], rng: random.Random, aggressiveness: float) -> Tuple[List[Owner], Dict[str, float]]:
     """One stylised 32-nomination auction.
 
-    Nomination order starts with a shuffled nine-manager round and repeats. With
-    32 teams, five managers receive a fourth nomination and four receive three.
+    Nomination order starts with a shuffled round of all managers and repeats. With
+    32 teams and PLAYERS managers, that divides evenly only when 32 % PLAYERS == 0;
+    otherwise some managers get one more nomination than others.
 
     Bidders have independent noisy opinions and never bid more than their cash.
     This is a planning model, not a claim that the real auction has a unique
