@@ -37,11 +37,11 @@ The included `schedule_2026.csv` is the provided 4for4 regular-season grid. Run 
 python3 fantasy_auction_simulator.py --schedule schedule_2026.csv --sims 10000
 ```
 
-It starts with the supplied Elo ratings, simulates season results, and converts expected scoring into a budget-neutral fair-value board.  Since the league has 8 x $100 = $800 total purchasing power, the fair board sums to exactly $800.  That is a useful anchor: if a top team costs $65, you need an explicit reason why its portfolio advantage is worth taking $25-plus away from your remaining teams.
+It starts with the supplied Elo ratings, simulates season results, and converts expected scoring into a budget-neutral fair-value board.  Since the league has 7 x $100 = $700 total purchasing power, the fair board sums to exactly $700.  That is a useful anchor: if a top team costs $65, you need an explicit reason why its portfolio advantage is worth taking $25-plus away from your remaining teams.
 
 ## Why this is a better starting point than “buy the best team”
 
-Each team’s fantasy score is its season wins (a tie would be 0.5; the supplied model currently treats NFL games as decisive). A player’s expected total is the sum across owned teams.  The initial fair values therefore allocate the $800 in proportion to expected points.  At an average 8.5 wins per NFL team, each expected season point initially costs about $2.94.
+Each team’s fantasy score is its season wins (a tie would be 0.5; the supplied model currently treats NFL games as decisive). A player’s expected total is the sum across owned teams.  The initial fair values therefore allocate the $700 in proportion to expected points.  At an average 8.5 wins per NFL team, each expected season point initially costs about $2.57.
 
 The printed “hard cap” is a deliberately small (10%) premium over fair value.  Paying substantially over it gives up too many future expected points; your stated format rewards a portfolio of good teams much more often than one elite team plus near-zero budget. “Room price” is an auction simulation—not a guarantee—and is useful for seeing which teams are likely to be contested.
 
@@ -76,13 +76,13 @@ The simulator deliberately separates **objective fair values** from a price fore
 
 ## Simulate entire auctions
 
-Add `--auction-sims` to simulate the actual 32 nominations and report the team-count and expected-score distribution for the eight managers:
+Add `--auction-sims` to simulate the actual 32 nominations and report the team-count and expected-score distribution for the seven managers:
 
 ```sh
 python3 fantasy_auction_simulator.py --schedule schedule_2026.csv --sims 10000 --auction-sims 10000
 ```
 
-The auction model draws a random eight-manager nomination order and repeats it until all 32 teams are nominated, so each manager nominates exactly four. Each manager has a noisy valuation of a team, maintains a cash reserve for later teams, and pays one bid increment above the runner-up. It is a symmetric baseline: its generic “representative manager” should be read as what an evenly skilled room looks like, not a prediction of a particular opponent.
+The auction model draws a random seven-manager nomination order and repeats it until all 32 teams are nominated. Four managers therefore nominate five teams and three nominate four. Each manager has a noisy valuation of a team, maintains a cash reserve for later teams, and pays one bid increment above the runner-up. It is a symmetric baseline: its generic “representative manager” should be read as what an evenly skilled room looks like, not a prediction of a particular opponent.
 
 ## Which portfolios actually win?
 

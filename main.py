@@ -4,7 +4,7 @@
 Run with:
     uvicorn main:app --reload
 
-Draft state (the 9 managers and every completed pick) persists to
+Draft state (the fixed manager roster and every completed pick) persists to
 draft_state.json (in this directory) on every write, so the draft survives a
 server restart. The market board itself is not stored on disk: it is
 recomputed from fantasy_auction_simulator.market_snapshot() every time a
@@ -58,14 +58,25 @@ def _default_managers() -> List[dict]:
     return [{"id": f"m{i + 1}", "name": f"Manager {i + 1}"} for i in range(sim.PLAYERS)]
 
 
+def _resize_managers(managers: List[dict]) -> List[dict]:
+    """Reconcile the persisted roster with the current sim.PLAYERS count.
+
+    Keeps existing manager ids/names in place (so renames survive) and only
+    truncates or appends at the tail when the league size changes.
+    """
+    managers = managers[:sim.PLAYERS]
+    while len(managers) < sim.PLAYERS:
+        i = len(managers) + 1
+        managers.append({"id": f"m{i}", "name": f"Manager {i}"})
+    return managers
+
+
 def _load_state() -> dict:
     if not DRAFT_STATE_PATH.exists():
         return {"managers": _default_managers(), "picks": []}
     with DRAFT_STATE_PATH.open() as f:
         state = json.load(f)
-    # Fixed roster of 9 manager slots; backfill if the file predates this field.
-    if len(state.get("managers", [])) != sim.PLAYERS:
-        state["managers"] = _default_managers()
+    state["managers"] = _resize_managers(state.get("managers", []))
     state.setdefault("picks", [])
     return state
 
@@ -140,5 +151,18 @@ def post_pick(pick: PickIn) -> dict:
         if any(p["team"] == team for p in state["picks"]):
             raise HTTPException(status_code=409, detail=f"{team} has already been drafted")
         state["picks"].append({"team": team, "price": pick.price, "manager_id": pick.manager_id})
+        _save_state(state)
+        return {"ok": True, "market": _full_market(state)}
+
+
+@app.delete("/api/pick/{team}")
+def delete_pick(team: str) -> dict:
+    team = team.upper()
+    with _state_lock:
+        state = _load_state()
+        remaining = [p for p in state["picks"] if p["team"] != team]
+        if len(remaining) == len(state["picks"]):
+            raise HTTPException(status_code=404, detail=f"{team} has not been drafted")
+        state["picks"] = remaining
         _save_state(state)
         return {"ok": True, "market": _full_market(state)}

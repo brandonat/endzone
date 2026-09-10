@@ -32,7 +32,7 @@ RATINGS: Dict[str, int] = {
     "NYJ":1386,"CAR":1380,
 }
 
-PLAYERS, STARTING_BUDGET, GAMES = 8, 100.0, 17
+PLAYERS, STARTING_BUDGET, GAMES = 7, 100.0, 17
 HOME_FIELD_ELO = 55  # change to 0 for fully neutral game simulations
 TOTAL_LEAGUE_BUDGET = PLAYERS * STARTING_BUDGET
 

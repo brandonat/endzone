@@ -257,6 +257,43 @@ h2 {
   color: var(--muted);
 }
 
+.cancel-btn {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: 999px;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  padding: 0;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: var(--down);
+  color: white;
+}
+
+.cancel-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 0;
+  margin-left: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cancel-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.cancel-link:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .empty.small {
   padding: 4px 0 0;
   font-size: 0.85rem;
