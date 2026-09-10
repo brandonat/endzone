@@ -18,6 +18,7 @@ import random
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
@@ -33,6 +34,10 @@ RATINGS: Dict[str, int] = {
 
 PLAYERS, STARTING_BUDGET, GAMES = 9, 100.0, 17
 HOME_FIELD_ELO = 55  # change to 0 for fully neutral game simulations
+TOTAL_LEAGUE_BUDGET = PLAYERS * STARTING_BUDGET
+
+# Baseline projections default to the league's real schedule shipped alongside this script.
+DEFAULT_SCHEDULE_PATH = Path(__file__).resolve().parent / "schedule_2026.csv"
 
 
 def win_probability(team_elo: float, opponent_elo: float, home: int = 0) -> float:
@@ -123,6 +128,74 @@ def fair_values(samples: Dict[str, List[float]]) -> Dict[str, float]:
     means = {t: statistics.mean(x) for t, x in samples.items()}
     total = sum(means.values())
     return {t: PLAYERS * STARTING_BUDGET * means[t] / total for t in means}
+
+
+def build_baseline_board(schedule_path: Optional[Path | str] = DEFAULT_SCHEDULE_PATH,
+                         sims: int = 3000, seed: int = 20260909) -> Dict[str, float]:
+    """Run the Monte-Carlo season model once and return the budget-neutral fair-value board.
+
+    This is the expensive step (it simulates `sims` seasons) and does not depend on any
+    draft picks, so callers should compute it once and reuse it across picks rather than
+    calling this for every request.
+    """
+    rng = random.Random(seed)
+    samples = season_samples(sims, str(schedule_path) if schedule_path else None, rng)
+    return fair_values(samples)
+
+
+def market_snapshot(picks: List[Dict[str, object]], baseline_board: Dict[str, float]) -> Dict[str, object]:
+    """Recalculate adjusted market values for undrafted teams given completed draft picks.
+
+    This is the cheap, callable core of the live draft board: it takes the array of
+    completed picks (each with a team, sale price, and manager) plus the precomputed
+    baseline board, and dynamically recalculates an inflation factor from the league's
+    total remaining budget. Every undrafted team's adjusted value is its baseline value
+    scaled by that inflation factor, so teams get pricier as the room overspends its
+    original budget-neutral board and cheaper as it underspends.
+    """
+    drafted: Dict[str, Dict[str, object]] = {}
+    total_spent = 0.0
+    for pick in picks:
+        team = str(pick["team"]).upper()
+        if team not in baseline_board:
+            raise ValueError(f"Unknown team in picks: {team}")
+        if team in drafted:
+            raise ValueError(f"Team drafted more than once: {team}")
+        price = float(pick["price"])
+        # Carry through any other pick fields (e.g. manager_id) unchanged; this
+        # function only owns the team-economics part of a pick.
+        extra = {k: v for k, v in pick.items() if k not in ("team", "price")}
+        drafted[team] = {"price": price, **extra}
+        total_spent += price
+
+    undrafted = [t for t in baseline_board if t not in drafted]
+    remaining_budget = TOTAL_LEAGUE_BUDGET - total_spent
+    baseline_remaining_value = sum(baseline_board[t] for t in undrafted)
+    inflation_factor = (remaining_budget / baseline_remaining_value
+                        if baseline_remaining_value > 0 else 0.0)
+
+    # Every team stays in this list at its original fair-value rank, drafted or not,
+    # so a client can render a single always-in-order board and just mark drafted
+    # rows instead of having them jump out of the table.
+    teams = [
+        {
+            "team": team,
+            "baseline_value": round(baseline_board[team], 2),
+            "adjusted_value": (round(baseline_board[team] * inflation_factor, 2)
+                               if team not in drafted else None),
+            "drafted": team in drafted,
+            **drafted.get(team, {}),
+        }
+        for team in sorted(baseline_board, key=lambda t: baseline_board[t], reverse=True)
+    ]
+
+    return {
+        "inflation_factor": round(inflation_factor, 4),
+        "total_league_budget": TOTAL_LEAGUE_BUDGET,
+        "total_spent": round(total_spent, 2),
+        "remaining_budget": round(remaining_budget, 2),
+        "teams": teams,
+    }
 
 
 @dataclass

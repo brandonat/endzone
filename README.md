@@ -1,5 +1,36 @@
 # Fantasy football team-auction simulator
 
+## Live draft board (FastAPI + Svelte)
+
+A live draft board sits on top of the simulator: a FastAPI backend serves market values that
+re-inflate as picks come in, and a Svelte frontend gives you a rapid pick-entry form and a
+reactive valuation table.
+
+Backend (from the repo root):
+
+```sh
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+This computes a baseline board once at startup (from `schedule_2026.csv`) and persists every
+pick to `draft_state.json`, so the draft survives a server restart. Endpoints:
+
+- `GET /api/teams` — current inflation factor and each undrafted team's baseline/adjusted value.
+- `POST /api/pick` — body `{"team": "BUF", "price": 92.5, "manager": "Brandon"}`; appends the pick.
+
+Frontend (in a second terminal):
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+
+Open the printed localhost URL; its dev server proxies `/api/*` to the backend on port 8000.
+
+
 The included `schedule_2026.csv` is the provided 4for4 regular-season grid. Run the simulator against it with:
 
 ```sh
