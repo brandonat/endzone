@@ -191,6 +191,7 @@
           <thead>
             <tr>
               <th>Team</th>
+              <th class="num">ELO</th>
               <th class="num">Fair value</th>
               <th class="num">Adjusted value</th>
               <th>Owner</th>
@@ -201,6 +202,7 @@
               {@const delta = t.drafted ? 0 : t.adjusted_value - t.baseline_value}
               <tr class:drafted={t.drafted}>
                 <td>{t.team}</td>
+                <td class="num">{t.elo}</td>
                 <td class="num">${t.baseline_value.toFixed(1)}</td>
                 <td class="num delta" class:up={delta > 0} class:down={delta < 0}>
                   {t.drafted ? '—' : `$${t.adjusted_value.toFixed(1)}`}

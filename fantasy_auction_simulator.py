@@ -180,6 +180,7 @@ def market_snapshot(picks: List[Dict[str, object]], baseline_board: Dict[str, fl
     teams = [
         {
             "team": team,
+            "elo": RATINGS[team],
             "baseline_value": round(baseline_board[team], 2),
             "adjusted_value": (round(baseline_board[team] * inflation_factor, 2)
                                if team not in drafted else None),
