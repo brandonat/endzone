@@ -29,6 +29,72 @@ npm run dev
 ```
 
 Open the printed localhost URL; its dev server proxies `/api/*` to the backend on port 8000.
+The app has two tabs: **Season** (live standings) and **Draft board** (the auction view above).
+
+## Season tracker
+
+Once the draft is done, the league scores one point per NFL win and half a point per tie,
+summed over every team a manager owns.
+
+```sh
+python3 nfl_scores.py --refresh --show   # pull results from ESPN into season_results.json
+python3 season.py                        # leaderboard, projections, and title odds
+```
+
+`nfl_scores.py` reads ESPN's public scoreboard endpoint — no API key, standard library only.
+It caches to `season_results.json` and only re-fetches weeks that still have a non-final
+game, so polling it is cheap. Exactly one team code differs between the two sources
+(ESPN's `WSH` is the board's `WAS`); the bundled `schedule_2026.csv` otherwise agrees with
+ESPN on all 272 regular-season games.
+
+`season.py` conditions on what has actually happened rather than re-running the preseason
+model. Completed games are banked as real points, team Elo ratings are updated from those
+results (538-style, K=20 with a margin-of-victory multiplier), and only the games still on
+the schedule are simulated. So a projected final score is `points already banked +
+simulated wins from here`, and the title odds move as the season plays out.
+
+The backend exposes the same data to the UI:
+
+- `GET /api/season` — leaderboard, projections, week-by-week history, and every game.
+- `POST /api/season/refresh` — pull fresh scores from ESPN, then rebuild the above.
+
+The projection is a few hundred thousand simulated games, so the server computes it once
+per distinct set of results and reuses it until a score changes.
+
+## WhatsApp updates
+
+`whatsapp_notify.py` posts an update to a WhatsApp chat after games go final, driving
+WhatsApp Web through a headless browser. **Sending is opt-in**: without `--send` it only
+prints what it would post.
+
+```sh
+pip install -r requirements.txt
+python3 -m playwright install chromium
+python3 whatsapp_notify.py --login          # one-time: scan the QR in the browser window
+python3 whatsapp_notify.py --refresh        # dry run — print the update
+python3 whatsapp_notify.py --refresh --send # actually post it
+python3 whatsapp_notify.py --watch 300 --send   # poll every 5 minutes
+```
+
+`--login` saves a logged-in browser profile to `~/.endzone/whatsapp-profile`, after which
+sends run headless against that session. Set the target chat and the link back to the board
+in `notify_config.json`; the `chat` value must match the chat title in WhatsApp exactly.
+Announced games are recorded in `notify_state.json`, so a repeated run stays quiet until
+something new goes final (`--force` re-announces the latest week).
+
+A posted update looks like this:
+
+```
+*Endzone · Week 1*
+
+SEA beat NE 13-10; SF beat LAR 27-7
+
+*Leaderboard*
+1. Charlie — 1.0 pts (41% title)
+1. Martin — 1.0 pts (2% title)
+3. Rahim — 0.0 pts (26% title)
+...
+```
 
 
 The included `schedule_2026.csv` is the provided 4for4 regular-season grid. Run the simulator against it with:
