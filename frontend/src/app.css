@@ -1,11 +1,11 @@
 :root {
   color-scheme: light dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --bg: #0f1115;
-  --panel: #171a21;
-  --border: #2a2f3a;
+  --bg: #202226;
+  --panel: #2b2d32;
+  --border: #3d4046;
   --text: #e8eaed;
-  --muted: #9aa2af;
+  --muted: #a3aab5;
   --accent: #4f8cff;
   --up: #3fbf5f;
   --down: #e05555;
@@ -115,7 +115,7 @@ form.pick-form {
 
 input,
 select {
-  background: #0d0f14;
+  background: #1a1c20;
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 6px;
@@ -194,7 +194,7 @@ input.manager-name {
 input.manager-name:hover,
 input.manager-name:focus {
   border-color: var(--border);
-  background: #0d0f14;
+  background: #1a1c20;
 }
 
 h2 {
@@ -242,7 +242,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 5px;
-  background: #0d0f14;
+  background: #1a1c20;
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px 10px 3px 10px;
