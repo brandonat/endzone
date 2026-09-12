@@ -1,2 +1,7 @@
 fastapi==0.141.1
 uvicorn[standard]==0.52.4
+
+# Only needed for the WhatsApp notifier (whatsapp_notify.py); the score
+# fetcher, season model, and API run on the standard library alone.
+# After installing: python3 -m playwright install chromium
+playwright==1.62.0

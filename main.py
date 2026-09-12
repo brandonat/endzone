@@ -23,6 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import fantasy_auction_simulator as sim
+import nfl_scores
+import season as season_model
 
 BASE_DIR = Path(__file__).resolve().parent
 DRAFT_STATE_PATH = BASE_DIR / "draft_state.json"
@@ -42,6 +44,11 @@ BASELINE_BOARD = sim.build_baseline_board()
 
 # Guards read-modify-write access to draft_state.json across concurrent requests.
 _state_lock = threading.Lock()
+
+# The season projection is a few hundred thousand simulated games, so it is
+# computed once per distinct set of results and reused until a score changes.
+_season_lock = threading.Lock()
+_season_cache: Dict[str, object] = {"fingerprint": None, "state": None}
 
 
 class PickIn(BaseModel):
@@ -117,9 +124,43 @@ def _full_market(state: dict) -> dict:
     return market
 
 
+def _season_state(results: dict) -> dict:
+    """Build (or reuse) the season payload for a given set of fetched results."""
+    fingerprint = season_model.results_fingerprint(results)
+    with _season_lock:
+        if _season_cache["fingerprint"] != fingerprint:
+            _season_cache["state"] = season_model.build_season_state(
+                results, draft_state_path=DRAFT_STATE_PATH)
+            _season_cache["fingerprint"] = fingerprint
+        return _season_cache["state"]
+
+
 @app.get("/api/teams")
 def get_teams() -> dict:
     return _full_market(_load_state())
+
+
+@app.get("/api/season")
+def get_season() -> dict:
+    """Leaderboard, projections, and week-by-week history from the cached scores."""
+    results = nfl_scores.load_results()
+    if not results.get("games"):
+        raise HTTPException(
+            status_code=503,
+            detail="No scores cached yet. POST /api/season/refresh (or run "
+                   "python3 nfl_scores.py --refresh) to pull them from ESPN.",
+        )
+    return _season_state(results)
+
+
+@app.post("/api/season/refresh")
+def refresh_season() -> dict:
+    """Pull the latest scores from ESPN, then rebuild the season payload."""
+    try:
+        results = nfl_scores.refresh()
+    except nfl_scores.ScoreFetchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return _season_state(results)
 
 
 @app.put("/api/managers/{manager_id}")

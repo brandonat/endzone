@@ -3,5 +3,10 @@ __pycache__/
 .venv/
 draft_state.json
 
+# Fetched/derived state, not source.
+season_results.json
+notify_state.json
+*.json.tmp
+
 frontend/node_modules/
 frontend/dist/
