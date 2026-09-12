@@ -10,6 +10,7 @@
   let managerId = $state('');
   let submitting = $state(false);
   let formError = $state('');
+  let cancelingTeam = $state('');
 
   const inflationPct = $derived(market ? market.inflation_factor * 100 : 100);
   const undraftedTeams = $derived(market ? market.teams.filter((t) => !t.drafted) : []);
@@ -54,6 +55,20 @@
       formError = err.message;
     } finally {
       submitting = false;
+    }
+  }
+
+  async function cancelPick(teamCode) {
+    cancelingTeam = teamCode;
+    try {
+      const res = await fetch(`/api/pick/${teamCode}`, { method: 'DELETE' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.detail || `Server responded ${res.status}`);
+      market = body.market;
+    } catch (err) {
+      loadError = `Could not cancel pick: ${err.message}`;
+    } finally {
+      cancelingTeam = '';
     }
   }
 
@@ -146,7 +161,18 @@
               {#if m.teams.length}
                 <ul class="manager-teams">
                   {#each m.teams as t (t.team)}
-                    <li><span class="team-tag">{t.team}</span><span class="team-price">${t.price.toFixed(1)}</span></li>
+                    <li>
+                      <span class="team-tag">{t.team}</span>
+                      <span class="team-price">${t.price.toFixed(1)}</span>
+                      <button
+                        type="button"
+                        class="cancel-btn"
+                        onclick={() => cancelPick(t.team)}
+                        disabled={cancelingTeam === t.team}
+                        aria-label={`Cancel ${t.team} pick`}
+                        title={`Cancel ${t.team} pick`}
+                      >×</button>
+                    </li>
                   {/each}
                 </ul>
               {:else}
@@ -165,6 +191,7 @@
           <thead>
             <tr>
               <th>Team</th>
+              <th class="num">ELO</th>
               <th class="num">Fair value</th>
               <th class="num">Adjusted value</th>
               <th>Owner</th>
@@ -175,11 +202,24 @@
               {@const delta = t.drafted ? 0 : t.adjusted_value - t.baseline_value}
               <tr class:drafted={t.drafted}>
                 <td>{t.team}</td>
+                <td class="num">{t.elo}</td>
                 <td class="num">${t.baseline_value.toFixed(1)}</td>
                 <td class="num delta" class:up={delta > 0} class:down={delta < 0}>
                   {t.drafted ? '—' : `$${t.adjusted_value.toFixed(1)}`}
                 </td>
-                <td class="owner">{t.drafted ? `${t.manager_name} · $${t.price.toFixed(1)}` : '—'}</td>
+                <td class="owner">
+                  {#if t.drafted}
+                    {t.manager_name} · ${t.price.toFixed(1)}
+                    <button
+                      type="button"
+                      class="cancel-link"
+                      onclick={() => cancelPick(t.team)}
+                      disabled={cancelingTeam === t.team}
+                    >{cancelingTeam === t.team ? '…' : 'cancel'}</button>
+                  {:else}
+                    —
+                  {/if}
+                </td>
               </tr>
             {/each}
           </tbody>
