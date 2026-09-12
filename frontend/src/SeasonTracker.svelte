@@ -88,7 +88,12 @@
 </script>
 
 {#if error}
-  <div class="card error">{error}</div>
+  <div class="card error">
+    <p>{error}</p>
+    <button onclick={() => load(true)} disabled={refreshing}>
+      {refreshing ? 'Refreshing…' : 'Refresh scores'}
+    </button>
+  </div>
 {/if}
 
 {#if season}
@@ -192,6 +197,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+  }
+
+  .error p {
+    margin: 0 0 8px;
   }
 
   .big {
