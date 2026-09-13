@@ -131,17 +131,20 @@ def save_results(data: dict, path: Path = RESULTS_PATH) -> None:
 
 
 def _weeks_needing_refresh(cached_games: List[dict], through_week: int) -> List[int]:
-    """Weeks up to `through_week` that are missing or still have a non-final game.
+    """Every week whose schedule is missing, plus any not-yet-final week up to now.
 
-    Weeks whose games are all final never change again, so they are skipped. That
-    keeps an every-few-minutes poll down to one or two requests.
+    A week we've never fetched needs its schedule pulled even if it's still in the
+    future - the season projection simulates every game left on the schedule, not
+    just the ones already played, so future weeks must be in the cache too. Weeks
+    whose games are all final never change again, so those are skipped. That keeps
+    an every-few-minutes poll down to one or two requests.
     """
     by_week: Dict[int, List[dict]] = {}
     for game in cached_games:
         by_week.setdefault(game["week"], []).append(game)
     return [
-        week for week in range(1, min(through_week, WEEKS) + 1)
-        if week not in by_week or not all(g["completed"] for g in by_week[week])
+        week for week in range(1, WEEKS + 1)
+        if week not in by_week or (week <= through_week and not all(g["completed"] for g in by_week[week]))
     ]
 
 
