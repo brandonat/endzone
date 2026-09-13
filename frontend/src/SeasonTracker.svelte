@@ -66,29 +66,36 @@
     return t ? `${w}-${l}-${t}` : `${w}-${l}`;
   }
 
+  async function fetchJson(url, options) {
+    const res = await fetch(url, options);
+    // A gateway timeout or an unhandled server error comes back as plain text
+    // or HTML, so parse the body by hand rather than letting res.json() throw
+    // a message that says nothing about what actually went wrong.
+    const text = await res.text();
+    let body = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      throw new Error(
+        res.ok
+          ? 'The server sent a response that was not valid JSON.'
+          : `Server responded ${res.status} ${res.statusText}. ${text.slice(0, 200)}`.trim(),
+      );
+    }
+    if (!res.ok) throw new Error(body.detail || `Server responded ${res.status}`);
+    return body;
+  }
+
   async function load(refresh = false) {
     error = '';
     if (refresh) refreshing = true;
     try {
-      const res = await fetch(refresh ? '/api/season/refresh' : '/api/season', {
-        method: refresh ? 'POST' : 'GET',
-      });
-      // A gateway timeout or an unhandled server error comes back as plain text
-      // or HTML, so parse the body by hand rather than letting res.json() throw
-      // a message that says nothing about what actually went wrong.
-      const text = await res.text();
-      let body = null;
-      try {
-        body = JSON.parse(text);
-      } catch {
-        throw new Error(
-          res.ok
-            ? 'The server sent a response that was not valid JSON.'
-            : `Server responded ${res.status} ${res.statusText}. ${text.slice(0, 200)}`.trim(),
-        );
-      }
-      if (!res.ok) throw new Error(body.detail || `Server responded ${res.status}`);
-      season = body;
+      // Refreshing is two calls: the POST answers with a short summary rather
+      // than the payload (the scheduled warm-up job that also calls it cannot
+      // read a 65 KB response), and the GET then serves the rebuilt payload
+      // from the cache the POST just filled.
+      if (refresh) await fetchJson('/api/season/refresh', { method: 'POST' });
+      season = await fetchJson('/api/season');
     } catch (err) {
       error = err.message;
     } finally {

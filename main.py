@@ -64,6 +64,14 @@ def health() -> dict:
     }
 
 
+def _fetch_results() -> dict:
+    """Pull from ESPN, turning a fetch failure into a 502 rather than a 500."""
+    try:
+        return nfl_scores.refresh()
+    except nfl_scores.ScoreFetchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @app.get("/api/season")
 def get_season() -> dict:
     """Leaderboard, projections, and week-by-week history from the cached scores.
@@ -74,15 +82,27 @@ def get_season() -> dict:
     """
     results = nfl_scores.load_results()
     if not results.get("games"):
-        return refresh_season()
+        results = _fetch_results()
     return _season_state(results)
 
 
 @app.post("/api/season/refresh")
 def refresh_season() -> dict:
-    """Pull the latest scores from ESPN, then rebuild the season payload."""
-    try:
-        results = nfl_scores.refresh()
-    except nfl_scores.ScoreFetchError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return _season_state(results)
+    """Pull the latest scores from ESPN and rebuild the season payload.
+
+    The response is a short summary, not the payload itself. This endpoint is
+    what the scheduled warm-up job calls, and a cron service caps how much of a
+    response it will read: the full payload is ~65 KB, which ours rejected as
+    "Response data too big" on every run until it disabled the job. Whoever
+    wants the rebuilt payload reads `GET /api/season`, which serves it straight
+    from the cache this call just filled.
+    """
+    state = _season_state(_fetch_results())
+    return {
+        "ok": True,
+        "season": state["season"],
+        "fetched_at": state["fetched_at"],
+        "games_played": state["games_played"],
+        "games_total": state["games_total"],
+        "weeks_played": state["weeks_played"],
+    }
