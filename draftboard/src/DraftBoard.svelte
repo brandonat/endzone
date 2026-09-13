@@ -92,6 +92,9 @@
   onMount(fetchTeams);
 </script>
 
+<h1>Endzone Draft Board</h1>
+<p class="subtitle">Auction inflation and the fair-value board.</p>
+
 {#if loadError}
   <div class="card error">{loadError}</div>
 {/if}
