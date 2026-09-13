@@ -1,37 +1,19 @@
 # Fantasy football team-auction simulator
 
-## Live draft board (FastAPI + Svelte)
+The repo holds two apps that share one league file:
 
-A live draft board sits on top of the simulator: a FastAPI backend serves market values that
-re-inflate as picks come in, and a Svelte frontend gives you a rapid pick-entry form and a
-reactive valuation table.
+| App | Lives in | Runs | Reads `draft_state.json` |
+| --- | --- | --- | --- |
+| **Season tracker** — live standings, projections, title odds | `main.py` + `frontend/` | deployed (Render + Vercel) | read-only |
+| **Draft board** — auction inflation and the fair-value board | `draft_server.py` + `draftboard/` | local only, on draft night | read/write |
 
-Backend (from the repo root):
-
-```sh
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-This computes a baseline board once at startup (from `schedule_2026.csv`) and persists every
-pick to `draft_state.json`, so the draft survives a server restart. Endpoints:
-
-- `GET /api/teams` — current inflation factor and each undrafted team's baseline/adjusted value.
-- `POST /api/pick` — body `{"team": "BUF", "price": 92.5, "manager": "Brandon"}`; appends the pick.
-
-Frontend (in a second terminal):
-
-```sh
-cd frontend
-npm install
-npm run dev
-```
-
-Open the printed localhost URL; its dev server proxies `/api/*` to the backend on port 8000.
-The app has two tabs: **Season** (live standings) and **Draft board** (the auction view above).
+`draft_state.json` is committed. The draft is over, so the roster and the 32 picks are league
+data the deployed season tracker needs to have with it, not scratch state.
 
 ## Season tracker
+
+Once the draft is done, the league scores one point per NFL win and half a point per tie,
+summed over every team a manager owns.
 
 Once the draft is done, the league scores one point per NFL win and half a point per tie,
 summed over every team a manager owns.
@@ -57,9 +39,50 @@ The backend exposes the same data to the UI:
 
 - `GET /api/season` — leaderboard, projections, week-by-week history, and every game.
 - `POST /api/season/refresh` — pull fresh scores from ESPN, then rebuild the above.
+- `GET /api/health` — manager count, teams owned, and how many scores are cached.
 
 The projection is a few hundred thousand simulated games, so the server computes it once
-per distinct set of results and reuses it until a score changes.
+per distinct set of results and reuses it until a score changes. `season_results.json` is
+not committed, and the host's disk is ephemeral, so `GET /api/season` pulls from ESPN itself
+when it finds no cache rather than making the first visitor press a button.
+
+Run it locally with:
+
+```sh
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload            # http://127.0.0.1:8000
+```
+
+```sh
+cd frontend && npm install && npm run dev
+```
+
+The dev server proxies `/api/*` to port 8000. In production Vercel serves `frontend/` and
+rewrites `/api/*` to the Render backend (see `frontend/vercel.json`).
+
+## Draft board (local only)
+
+A live draft board sits on top of the simulator: a FastAPI backend serves market values that
+re-inflate as picks come in, and a Svelte frontend gives you a rapid pick-entry form and a
+reactive valuation table. It is deliberately not deployed — it writes to `draft_state.json`,
+and it is only useful on draft night.
+
+```sh
+uvicorn draft_server:app --reload --port 8001
+```
+
+```sh
+cd draftboard && npm install && npm run dev   # http://localhost:5174
+```
+
+`draft_server.py` computes a baseline board once at startup (from `schedule_2026.csv`) and
+persists every pick, so the draft survives a server restart. Endpoints:
+
+- `GET /api/teams` — current inflation factor and each undrafted team's baseline/adjusted value.
+- `POST /api/pick` — body `{"team": "BUF", "price": 92.5, "manager_id": "m7"}`; appends the pick.
+- `DELETE /api/pick/{team}` — undo a pick.
+- `PUT /api/managers/{id}` — body `{"name": "Brandon"}`; rename a manager.
 
 ## WhatsApp updates
 

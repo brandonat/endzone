@@ -1,0 +1,194 @@
+{
+  "managers": [
+    {
+      "id": "m1",
+      "name": "Bill"
+    },
+    {
+      "id": "m2",
+      "name": "Charlie"
+    },
+    {
+      "id": "m3",
+      "name": "Martin"
+    },
+    {
+      "id": "m4",
+      "name": "Klaus"
+    },
+    {
+      "id": "m5",
+      "name": "Rahim"
+    },
+    {
+      "id": "m6",
+      "name": "Greg"
+    },
+    {
+      "id": "m7",
+      "name": "Brandon"
+    }
+  ],
+  "picks": [
+    {
+      "team": "LAR",
+      "price": 30.0,
+      "manager_id": "m6"
+    },
+    {
+      "team": "BUF",
+      "price": 29.0,
+      "manager_id": "m7"
+    },
+    {
+      "team": "MIN",
+      "price": 20.0,
+      "manager_id": "m2"
+    },
+    {
+      "team": "ATL",
+      "price": 18.0,
+      "manager_id": "m4"
+    },
+    {
+      "team": "HOU",
+      "price": 27.0,
+      "manager_id": "m1"
+    },
+    {
+      "team": "BAL",
+      "price": 32.0,
+      "manager_id": "m1"
+    },
+    {
+      "team": "PHI",
+      "price": 27.0,
+      "manager_id": "m1"
+    },
+    {
+      "team": "CAR",
+      "price": 17.0,
+      "manager_id": "m5"
+    },
+    {
+      "team": "WAS",
+      "price": 16.0,
+      "manager_id": "m3"
+    },
+    {
+      "team": "PIT",
+      "price": 21.0,
+      "manager_id": "m2"
+    },
+    {
+      "team": "CHI",
+      "price": 23.0,
+      "manager_id": "m6"
+    },
+    {
+      "team": "GB",
+      "price": 24.0,
+      "manager_id": "m3"
+    },
+    {
+      "team": "SEA",
+      "price": 33.0,
+      "manager_id": "m3"
+    },
+    {
+      "team": "NE",
+      "price": 24.0,
+      "manager_id": "m2"
+    },
+    {
+      "team": "LAC",
+      "price": 25.0,
+      "manager_id": "m3"
+    },
+    {
+      "team": "KC",
+      "price": 26.0,
+      "manager_id": "m7"
+    },
+    {
+      "team": "ARI",
+      "price": 10.0,
+      "manager_id": "m4"
+    },
+    {
+      "team": "DET",
+      "price": 29.0,
+      "manager_id": "m7"
+    },
+    {
+      "team": "NO",
+      "price": 17.0,
+      "manager_id": "m6"
+    },
+    {
+      "team": "CIN",
+      "price": 26.0,
+      "manager_id": "m4"
+    },
+    {
+      "team": "SF",
+      "price": 22.0,
+      "manager_id": "m2"
+    },
+    {
+      "team": "NYG",
+      "price": 16.0,
+      "manager_id": "m5"
+    },
+    {
+      "team": "TEN",
+      "price": 13.0,
+      "manager_id": "m6"
+    },
+    {
+      "team": "MIA",
+      "price": 10.0,
+      "manager_id": "m2"
+    },
+    {
+      "team": "DAL",
+      "price": 23.0,
+      "manager_id": "m5"
+    },
+    {
+      "team": "NYJ",
+      "price": 12.0,
+      "manager_id": "m4"
+    },
+    {
+      "team": "LV",
+      "price": 14.0,
+      "manager_id": "m6"
+    },
+    {
+      "team": "TB",
+      "price": 21.0,
+      "manager_id": "m4"
+    },
+    {
+      "team": "IND",
+      "price": 16.0,
+      "manager_id": "m7"
+    },
+    {
+      "team": "CLE",
+      "price": 14.0,
+      "manager_id": "m1"
+    },
+    {
+      "team": "DEN",
+      "price": 22.0,
+      "manager_id": "m5"
+    },
+    {
+      "team": "JAX",
+      "price": 22.0,
+      "manager_id": "m5"
+    }
+  ]
+}

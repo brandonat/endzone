@@ -73,7 +73,20 @@
       const res = await fetch(refresh ? '/api/season/refresh' : '/api/season', {
         method: refresh ? 'POST' : 'GET',
       });
-      const body = await res.json();
+      // A gateway timeout or an unhandled server error comes back as plain text
+      // or HTML, so parse the body by hand rather than letting res.json() throw
+      // a message that says nothing about what actually went wrong.
+      const text = await res.text();
+      let body = null;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'The server sent a response that was not valid JSON.'
+            : `Server responded ${res.status} ${res.statusText}. ${text.slice(0, 200)}`.trim(),
+        );
+      }
       if (!res.ok) throw new Error(body.detail || `Server responded ${res.status}`);
       season = body;
     } catch (err) {
