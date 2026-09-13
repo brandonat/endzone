@@ -3,7 +3,7 @@
 </script>
 
 <header>
-  <h1>Endzone</h1>
+  <h1>2026 NFL Fantasy Team Ownership</h1>
 </header>
 <p class="subtitle">Live standings, projections, and title odds.</p>
 
