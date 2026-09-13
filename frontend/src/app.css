@@ -71,6 +71,11 @@ button:disabled {
   margin-top: 8px;
 }
 
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -92,8 +97,9 @@ th {
   letter-spacing: 0.03em;
 }
 
+th.num,
 td.num {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 

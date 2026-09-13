@@ -125,44 +125,46 @@
 
   <div class="card">
     <h2>Leaderboard</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Manager</th>
-          <th class="num">Points</th>
-          <th class="num">Projected</th>
-          <th class="num">P10–P90</th>
-          <th class="num">Title odds</th>
-          <th>Teams</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each season.leaderboard as entry (entry.manager_id)}
+    <div class="table-scroll">
+      <table>
+        <thead>
           <tr>
-            <td>{entry.rank}</td>
-            <td>
-              <span class="swatch" style="background: {colorOf.get(entry.manager_id)}"></span>
-              {entry.name}
-            </td>
-            <td class="num strong">{entry.points.toFixed(1)}</td>
-            <td class="num">{entry.projected_final.toFixed(1)}</td>
-            <td class="num muted">{entry.p10.toFixed(0)}–{entry.p90.toFixed(0)}</td>
-            <td class="num">{entry.title_odds.toFixed(1)}%</td>
-            <td>
-              <ul class="chips">
-                {#each entry.teams as team (team.team)}
-                  <li title="{team.team}: {recordOf(team)}, {team.points} pts, projected {team.projected_wins.toFixed(1)} wins">
-                    <span class="team-tag">{team.team}</span>
-                    <span class="muted">{recordOf(team)}</span>
-                  </li>
-                {/each}
-              </ul>
-            </td>
+            <th>#</th>
+            <th>Manager</th>
+            <th class="num">Points</th>
+            <th class="num">Projected</th>
+            <th class="num">P10–P90</th>
+            <th class="num">Title odds</th>
+            <th>Teams</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each season.leaderboard as entry (entry.manager_id)}
+            <tr>
+              <td>{entry.rank}</td>
+              <td>
+                <span class="swatch" style="background: {colorOf.get(entry.manager_id)}"></span>
+                {entry.name}
+              </td>
+              <td class="num strong">{entry.points.toFixed(1)}</td>
+              <td class="num">{entry.projected_final.toFixed(1)}</td>
+              <td class="num muted">{entry.p10.toFixed(0)}–{entry.p90.toFixed(0)}</td>
+              <td class="num">{entry.title_odds.toFixed(1)}%</td>
+              <td>
+                <ul class="chips">
+                  {#each entry.teams as team (team.team)}
+                    <li title="{team.team}: {recordOf(team)}, {team.points} pts, projected {team.projected_wins.toFixed(1)} wins">
+                      <span class="team-tag">{team.team}</span>
+                      <span class="muted">{recordOf(team)}</span>
+                    </li>
+                  {/each}
+                </ul>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   {#if season.history.length}
