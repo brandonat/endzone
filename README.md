@@ -38,7 +38,11 @@ simulated wins from here`, and the title odds move as the season plays out.
 The backend exposes the same data to the UI:
 
 - `GET /api/season` — leaderboard, projections, week-by-week history, and every game.
-- `POST /api/season/refresh` — pull fresh scores from ESPN, then rebuild the above.
+- `POST /api/season/refresh` — pull fresh scores from ESPN, rebuild the above, and answer
+  with a short summary (season, fetch time, games played). It stays small on purpose: this
+  is the URL the scheduled warm-up job hits, and cron services cap how much of a response
+  they will read — the full ~65 KB payload is over the limit. Read it back from
+  `GET /api/season`, which serves the cache the refresh just filled.
 - `GET /api/health` — manager count, teams owned, and how many scores are cached.
 
 The projection is a few hundred thousand simulated games, so the server computes it once
