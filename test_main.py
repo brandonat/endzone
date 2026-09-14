@@ -57,6 +57,15 @@ def test_refresh_returns_a_summary_not_the_season_payload(monkeypatch, results):
     assert len(json.dumps(body)) < REFRESH_RESPONSE_BUDGET
 
 
+def test_refresh_answers_get_as_well_as_post():
+    """Cron services send GET by default; a 405 there disables the job just as
+    surely as an oversized response did."""
+    route = next(r for r in main.app.routes
+                 if getattr(r, "path", None) == "/api/season/refresh")
+
+    assert {"GET", "POST"} <= route.methods
+
+
 def test_refresh_still_fills_the_cache_that_get_season_reads(monkeypatch, results):
     monkeypatch.setattr(nfl_scores, "refresh", lambda: results)
     main.refresh_season()

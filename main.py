@@ -86,7 +86,7 @@ def get_season() -> dict:
     return _season_state(results)
 
 
-@app.post("/api/season/refresh")
+@app.api_route("/api/season/refresh", methods=["GET", "POST"])
 def refresh_season() -> dict:
     """Pull the latest scores from ESPN and rebuild the season payload.
 
@@ -96,6 +96,11 @@ def refresh_season() -> dict:
     "Response data too big" on every run until it disabled the job. Whoever
     wants the rebuilt payload reads `GET /api/season`, which serves it straight
     from the cache this call just filled.
+
+    GET is allowed as well as POST because cron services send GET by default,
+    and a job pointed here with the default method would otherwise collect 405s
+    until it was disabled. Refreshing a cache is safe to repeat, so the two
+    methods do the same thing.
     """
     state = _season_state(_fetch_results())
     return {
