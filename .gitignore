@@ -2,9 +2,10 @@ __pycache__/
 *.pyc
 .venv/
 
-# Fetched/derived state, not source. draft_state.json is deliberately NOT here:
-# the draft is over, so the roster and picks are league data the deployed
-# season tracker needs to have with it.
+# Fetched/derived state, not source. draft_state.json and elo_overrides.json are
+# deliberately NOT here: the draft is over, so the roster and picks are league
+# data the deployed season tracker needs to have with it, and elo_overrides.json
+# is manually-curated league data in the same sense.
 season_results.json
 notify_state.json
 *.json.tmp

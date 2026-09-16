@@ -29,6 +29,7 @@ from fantasy_auction_simulator import HOME_FIELD_ELO, RATINGS, percentile
 
 BASE_DIR = Path(__file__).resolve().parent
 DRAFT_STATE_PATH = BASE_DIR / "draft_state.json"
+ELO_OVERRIDES_PATH = BASE_DIR / "elo_overrides.json"
 
 # 538-style in-season Elo update. K sets how fast ratings move; the
 # margin-of-victory multiplier damps blowouts by heavy favourites so that
@@ -57,6 +58,28 @@ def load_league(path: Path = DRAFT_STATE_PATH) -> Tuple[Dict[str, str], Dict[str
     return managers, team_owner
 
 
+def load_elo_overrides(path: Path = ELO_OVERRIDES_PATH) -> List[dict]:
+    """Manually-supplied Elo refreshes: `[{"week": 3, "ratings": {"SF": 1610}}, ...]`.
+
+    RATINGS is a preseason snapshot and the in-season update in `elo_through`
+    only learns from game results, so a team's rating can lag real changes
+    (injury, trade, a rookie taking over) for weeks. An entry here says "as of
+    the start of this week, use these ratings instead" for whichever teams it
+    lists; `elo_through` applies it in place of whatever it had computed by
+    then and keeps updating from there. The file is committed league data, like
+    draft_state.json, not derived cache, so it's absent from .gitignore.
+    """
+    if not path.exists():
+        return []
+    with open(path) as f:
+        overrides = json.load(f)
+    for entry in overrides:
+        for team in entry.get("ratings", {}):
+            if team not in RATINGS:
+                raise ValueError(f"Unknown team in {path.name}: {team}")
+    return overrides
+
+
 # --------------------------------------------------------------------------- elo
 
 def _expected_home(home_elo: float, away_elo: float) -> float:
@@ -64,14 +87,31 @@ def _expected_home(home_elo: float, away_elo: float) -> float:
 
 
 def elo_through(games: Sequence[dict], through_week: Optional[int] = None,
-                k: float = ELO_K) -> Dict[str, float]:
-    """Ratings after applying every completed game (optionally only up to a week)."""
+                k: float = ELO_K, overrides: Optional[Sequence[dict]] = None) -> Dict[str, float]:
+    """Ratings after applying every completed game (optionally only up to a week).
+
+    `overrides` (see `load_elo_overrides`) are applied in week order as they
+    come due: an entry for week W replaces the listed teams' ratings right
+    before the first week-W game is processed, and the in-season update above
+    continues from that new value for whatever games come after. Overrides
+    due beyond the last completed game (or, with `through_week=None`, any
+    override at all) are flushed at the end, since there's no later game to
+    trigger them.
+    """
     elos = {team: float(rating) for team, rating in RATINGS.items()}
+    pending = sorted(overrides or [], key=lambda o: o["week"])
+
+    def apply_due(week: float) -> None:
+        while pending and pending[0]["week"] <= week:
+            for team, rating in pending.pop(0)["ratings"].items():
+                elos[team] = float(rating)
+
     ordered = sorted((g for g in games if g["completed"]),
                      key=lambda g: (g["week"], g["kickoff"] or ""))
     for game in ordered:
         if through_week is not None and game["week"] > through_week:
             break
+        apply_due(game["week"])
         home, away = game["home"], game["away"]
         expected = _expected_home(elos[home], elos[away])
         actual = 0.5 if game["tie"] else (1.0 if game["winner"] == home else 0.0)
@@ -93,6 +133,7 @@ def elo_through(games: Sequence[dict], through_week: Optional[int] = None,
         shift = k * mov * (actual - expected)
         elos[home] += shift
         elos[away] -= shift
+    apply_due(through_week if through_week is not None else math.inf)
     return elos
 
 
@@ -140,16 +181,21 @@ def manager_points(team_owner: Dict[str, str], points: Dict[str, float]) -> Dict
 
 def project(games: Sequence[dict], team_owner: Dict[str, str], manager_ids: Sequence[str],
             through_week: Optional[int] = None, sims: int = DEFAULT_SIMS,
-            seed: int = DEFAULT_SEED) -> dict:
+            seed: int = DEFAULT_SEED, overrides: Optional[Sequence[dict]] = None) -> dict:
     """Monte-Carlo the games that have not been played yet.
 
-    Elo is held fixed at its current value across a simulated future rather than
-    updated game by game inside each run. That understates how far ratings can
-    drift late in a season, but it keeps every simulated game independent given
-    the present state, which is what the title odds are conditioning on.
+    Elo drifts inside each simulated run: a team's rating updates after every
+    simulated game it plays, using that update to price its next one, instead
+    of every remaining game being judged against one value frozen at the
+    present. A simulated game has no score to compute a margin-of-victory
+    multiplier from, so its update is the plain K-factor shift (see
+    `elo_through` for the real-game version, which does apply that multiplier).
+    Ratings start from `elo_through(games, through_week, overrides=overrides)`,
+    so a manually-supplied refresh (see `load_elo_overrides`) still anchors
+    where each simulated season's drift begins.
     """
     banked_team = team_points(games, through_week)
-    elos = elo_through(games, through_week)
+    elos = elo_through(games, through_week, overrides=overrides)
 
     def is_played(game: dict) -> bool:
         return game["completed"] and (through_week is None or game["week"] <= through_week)
@@ -160,11 +206,12 @@ def project(games: Sequence[dict], team_owner: Dict[str, str], manager_ids: Sequ
     # Every team is drafted, but guard anyway so a partial draft cannot crash this.
     owner_of = [manager_index.get(team_owner.get(team, ""), -1) for team in teams]
 
-    remaining = [
-        (team_index[g["home"]], team_index[g["away"]],
-         _expected_home(elos[g["home"]], elos[g["away"]]))
-        for g in games if not is_played(g)
-    ]
+    # Chronological order so drift accumulates the way a real season would: a
+    # team's rating from an earlier simulated game governs its next one.
+    remaining_games = sorted((g for g in games if not is_played(g)),
+                             key=lambda g: (g["week"], g["kickoff"] or ""))
+    remaining = [(team_index[g["home"]], team_index[g["away"]]) for g in remaining_games]
+    base_elo = [elos[team] for team in teams]
 
     banked_manager = [0.0] * len(manager_ids)
     for team in teams:
@@ -183,12 +230,20 @@ def project(games: Sequence[dict], team_owner: Dict[str, str], manager_ids: Sequ
 
     for _ in range(sims):
         totals = banked_manager[:]
-        for home_i, away_i, p_home in remaining:
-            winner = home_i if random_float() < p_home else away_i
+        elo_sim = base_elo[:]
+        for home_i, away_i in remaining:
+            home_elo, away_elo = elo_sim[home_i], elo_sim[away_i]
+            p_home = 1.0 / (1.0 + 10.0 ** (-(home_elo + HOME_FIELD_ELO - away_elo) / 400.0))
+            home_wins = random_float() < p_home
+            winner = home_i if home_wins else away_i
             future_team_wins[winner] += 1.0
             owner = owner_of[winner]
             if owner >= 0:
                 totals[owner] += 1.0
+
+            shift = ELO_K * ((1.0 if home_wins else 0.0) - p_home)
+            elo_sim[home_i] += shift
+            elo_sim[away_i] -= shift
 
         for i, total in enumerate(totals):
             finals[i].append(total)
@@ -251,16 +306,20 @@ def completed_weeks(games: Sequence[dict]) -> List[int]:
 
 
 def build_history(games: Sequence[dict], team_owner: Dict[str, str], manager_ids: Sequence[str],
-                  sims: int = DEFAULT_HISTORY_SIMS, seed: int = DEFAULT_SEED) -> List[dict]:
+                  sims: int = DEFAULT_HISTORY_SIMS, seed: int = DEFAULT_SEED,
+                  overrides: Optional[Sequence[dict]] = None) -> List[dict]:
     """Points and title odds as they stood at the end of each week with results.
 
     Week 0 is the preseason state: nobody has points yet and the odds come from
     the draft-day Elo ratings, which gives every chart a real starting point.
+    Each week's snapshot only applies overrides due by that week, so a later
+    manual refresh doesn't rewrite how earlier weeks looked at the time.
     """
     history = []
     for week in [0] + completed_weeks(games):
         points = manager_points(team_owner, team_points(games, week))
-        odds = project(games, team_owner, manager_ids, through_week=week, sims=sims, seed=seed)
+        odds = project(games, team_owner, manager_ids, through_week=week, sims=sims, seed=seed,
+                       overrides=overrides)
         odds_by_manager = {m["manager_id"]: m["title_odds"] for m in odds["managers"]}
         history.append({
             "week": week,
@@ -271,18 +330,19 @@ def build_history(games: Sequence[dict], team_owner: Dict[str, str], manager_ids
 
 
 def build_season_state(results: Optional[dict] = None, draft_state_path: Path = DRAFT_STATE_PATH,
-                       sims: int = DEFAULT_SIMS, history_sims: int = DEFAULT_HISTORY_SIMS,
-                       seed: int = DEFAULT_SEED) -> dict:
+                       elo_overrides_path: Path = ELO_OVERRIDES_PATH, sims: int = DEFAULT_SIMS,
+                       history_sims: int = DEFAULT_HISTORY_SIMS, seed: int = DEFAULT_SEED) -> dict:
     """The full payload the API and the WhatsApp notifier both read."""
     results = results if results is not None else nfl_scores.load_results()
     games = results.get("games", [])
     managers, team_owner = load_league(draft_state_path)
     manager_ids = list(managers)
+    overrides = load_elo_overrides(elo_overrides_path)
 
     points = team_points(games)
     records = team_records(games)
     totals = manager_points(team_owner, points)
-    projection = project(games, team_owner, manager_ids, sims=sims, seed=seed)
+    projection = project(games, team_owner, manager_ids, sims=sims, seed=seed, overrides=overrides)
     projection_by_manager = {m["manager_id"]: m for m in projection["managers"]}
 
     leaderboard = []
@@ -317,19 +377,46 @@ def build_season_state(results: Optional[dict] = None, draft_state_path: Path = 
         "games_total": len(games),
         "weeks_played": completed_weeks(games),
         "leaderboard": leaderboard,
-        "history": build_history(games, team_owner, manager_ids, sims=history_sims, seed=seed),
+        "history": build_history(games, team_owner, manager_ids, sims=history_sims, seed=seed,
+                                 overrides=overrides),
         "games": games,
         "sims": sims,
     }
 
 
-def results_fingerprint(results: dict) -> str:
-    """Identifies a set of completed results, so cached work can be reused."""
+def results_fingerprint(results: dict, overrides: Optional[Sequence[dict]] = None) -> str:
+    """Identifies a set of completed results (and any Elo overrides), so cached
+    work can be reused. Overrides are included because they change the
+    projection without touching a single game score, which is otherwise all
+    this fingerprint looks at.
+    """
     finished = sorted(
         f"{g['id']}:{g['home_score']}-{g['away_score']}"
         for g in results.get("games", []) if g["completed"]
     )
-    return f"{results.get('season')}|{len(finished)}|{hash(tuple(finished)) & 0xFFFFFFFF:08x}"
+    overrides_key = json.dumps(overrides or [], sort_keys=True)
+    return (f"{results.get('season')}|{len(finished)}|{hash(tuple(finished)) & 0xFFFFFFFF:08x}"
+            f"|{hash(overrides_key) & 0xFFFFFFFF:08x}")
+
+
+def record_elo_overrides(pairs: Sequence[str], week: int, path: Path = ELO_OVERRIDES_PATH) -> Dict[str, float]:
+    """Append a `--set-elo TEAM=RATING ...` refresh to the overrides file. Returns what was written."""
+    ratings: Dict[str, float] = {}
+    for pair in pairs:
+        team, sep, value = pair.partition("=")
+        team = team.upper()
+        if not sep:
+            raise ValueError(f"Expected TEAM=RATING, got: {pair!r}")
+        if team not in RATINGS:
+            raise ValueError(f"Unknown team: {team}")
+        ratings[team] = float(value)
+
+    overrides = load_elo_overrides(path)
+    overrides.append({"week": week, "ratings": ratings})
+    with open(path, "w") as f:
+        json.dump(overrides, f, indent=2)
+        f.write("\n")
+    return ratings
 
 
 def main() -> None:
@@ -337,7 +424,19 @@ def main() -> None:
     p.add_argument("--refresh", action="store_true", help="pull fresh scores from ESPN first")
     p.add_argument("--sims", type=int, default=DEFAULT_SIMS)
     p.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    p.add_argument("--set-elo", nargs="+", metavar="TEAM=RATING",
+                    help="record a manual Elo refresh in elo_overrides.json, e.g. "
+                         "--set-elo SF=1610 MIA=1390 --elo-week 3, then exit")
+    p.add_argument("--elo-week", type=int,
+                    help="the week the --set-elo refresh takes effect from (required with --set-elo)")
     args = p.parse_args()
+
+    if args.set_elo:
+        if args.elo_week is None:
+            raise SystemExit("--set-elo requires --elo-week")
+        ratings = record_elo_overrides(args.set_elo, args.elo_week)
+        print(f"Recorded elo_overrides.json entry for week {args.elo_week}: {ratings}")
+        return
 
     results = nfl_scores.refresh() if args.refresh else nfl_scores.load_results()
     if not results.get("games"):
