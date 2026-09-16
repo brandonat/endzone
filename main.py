@@ -41,7 +41,8 @@ _season_cache: Dict[str, object] = {"fingerprint": None, "state": None}
 
 def _season_state(results: dict) -> dict:
     """Build (or reuse) the season payload for a given set of fetched results."""
-    fingerprint = season_model.results_fingerprint(results)
+    overrides = season_model.load_elo_overrides()
+    fingerprint = season_model.results_fingerprint(results, overrides)
     with _season_lock:
         if _season_cache["fingerprint"] != fingerprint:
             _season_cache["state"] = season_model.build_season_state(

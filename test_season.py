@@ -80,6 +80,67 @@ def test_elo_through_ignores_games_after_through_week(monkeypatch):
     assert elos[TEAM_B] == 1500
 
 
+# --------------------------------------------------------------------------- elo overrides
+
+def test_load_elo_overrides_missing_file_returns_empty_list(tmp_path):
+    assert season.load_elo_overrides(tmp_path / "missing.json") == []
+
+
+def test_load_elo_overrides_rejects_unknown_team(tmp_path):
+    path = tmp_path / "elo_overrides.json"
+    path.write_text(json.dumps([{"week": 3, "ratings": {"ZZZ": 1600}}]))
+    with pytest.raises(ValueError):
+        season.load_elo_overrides(path)
+
+
+def test_elo_through_applies_override_before_that_weeks_games(monkeypatch):
+    monkeypatch.setattr(season, "RATINGS", {TEAM_A: 1500, TEAM_B: 1500})
+    games = [make_game("1", 3, TEAM_A, TEAM_B, 24, 0, completed=True)]
+    overrides = [{"week": 3, "ratings": {TEAM_A: 1650}}]
+    elos = season.elo_through(games, overrides=overrides)
+    # TEAM_A entered week 3 at the overridden 1650, then won, so it should sit above that.
+    assert elos[TEAM_A] > 1650
+
+
+def test_elo_through_ignores_overrides_not_yet_due(monkeypatch):
+    monkeypatch.setattr(season, "RATINGS", {TEAM_A: 1500, TEAM_B: 1500})
+    games = [make_game("1", 1, TEAM_A, TEAM_B, 24, 0, completed=True)]
+    overrides = [{"week": 5, "ratings": {TEAM_A: 1700}}]
+    elos = season.elo_through(games, through_week=2, overrides=overrides)
+    assert elos[TEAM_A] != 1700
+
+
+def test_elo_through_flushes_pending_overrides_when_through_week_is_none(monkeypatch):
+    monkeypatch.setattr(season, "RATINGS", {TEAM_A: 1500, TEAM_B: 1500})
+    games = [make_game("1", 1, TEAM_A, TEAM_B, 24, 0, completed=True)]
+    overrides = [{"week": 5, "ratings": {TEAM_A: 1700, TEAM_B: 1300}}]
+    elos = season.elo_through(games, overrides=overrides)  # through_week=None means "as of now"
+    assert elos[TEAM_A] == 1700
+    assert elos[TEAM_B] == 1300
+
+
+def test_project_uses_overrides_as_the_drift_starting_point(monkeypatch):
+    monkeypatch.setattr(season, "RATINGS", {TEAM_A: 1500, TEAM_B: 1500})
+    games = [make_game(str(w), w, TEAM_A, TEAM_B, completed=False) for w in range(1, 5)]
+    team_owner = {TEAM_A: "m1", TEAM_B: "m2"}
+    overrides = [{"week": 1, "ratings": {TEAM_A: 1800, TEAM_B: 1200}}]
+    result = season.project(games, team_owner, ["m1", "m2"], sims=2000, seed=3, overrides=overrides)
+    by_manager = {p["manager_id"]: p for p in result["managers"]}
+    assert by_manager["m1"]["title_odds"] > 90
+
+
+def test_record_elo_overrides_writes_and_is_readable_back(tmp_path):
+    path = tmp_path / "elo_overrides.json"
+    written = season.record_elo_overrides([f"{TEAM_A}=1610", f"{TEAM_B}=1390"], week=4, path=path)
+    assert written == {TEAM_A: 1610.0, TEAM_B: 1390.0}
+    assert season.load_elo_overrides(path) == [{"week": 4, "ratings": {TEAM_A: 1610.0, TEAM_B: 1390.0}}]
+
+
+def test_record_elo_overrides_rejects_unknown_team(tmp_path):
+    with pytest.raises(ValueError):
+        season.record_elo_overrides(["ZZZ=1600"], week=4, path=tmp_path / "elo_overrides.json")
+
+
 # --------------------------------------------------------------------------- project
 
 def test_project_with_no_remaining_games_just_returns_banked_points(monkeypatch):
@@ -122,6 +183,23 @@ def test_missing_future_weeks_collapses_the_projection(monkeypatch):
     assert full_total > truncated_total * 4
 
 
+def test_project_elo_drift_widens_the_projection_beyond_a_frozen_rate(monkeypatch):
+    """Two evenly matched teams playing a long remaining schedule at a fixed
+    win probability would have a Binomial(17, 0.5) final score, sd ~= 2.06. A
+    real season isn't like that: whichever team wins early games gets a little
+    more likely to keep winning, and drift is what lets the simulation capture
+    that instead of understating how spread out the final standings can get.
+    """
+    monkeypatch.setattr(season, "RATINGS", {TEAM_A: 1500, TEAM_B: 1500})
+    monkeypatch.setattr(season, "HOME_FIELD_ELO", 0)
+    games = [make_game(str(w), w, TEAM_A, TEAM_B, completed=False) for w in range(1, 18)]
+    team_owner = {TEAM_A: "m1", TEAM_B: "m2"}
+    result = season.project(games, team_owner, ["m1", "m2"], sims=20000, seed=9)
+    by_manager = {p["manager_id"]: p for p in result["managers"]}
+    assert by_manager["m1"]["sd"] > 2.5
+    assert by_manager["m2"]["sd"] > 2.5
+
+
 # --------------------------------------------------------------------------- completed_weeks
 
 def test_completed_weeks_only_lists_weeks_with_a_finished_game():
@@ -147,6 +225,16 @@ def test_results_fingerprint_stable_when_nothing_changes():
         make_game("2", 1, TEAM_C, TEAM_D, completed=False),
     ]}
     assert season.results_fingerprint(results) == season.results_fingerprint(results)
+
+
+def test_results_fingerprint_changes_when_elo_overrides_change():
+    """An override changes the projection without touching a game score, so it
+    has to be part of the cache key or a manual Elo refresh would never
+    invalidate the cached season payload.
+    """
+    results = {"season": 2026, "games": [make_game("1", 1, TEAM_A, TEAM_B, 24, 17, completed=True)]}
+    overrides = [{"week": 2, "ratings": {TEAM_A: 1600}}]
+    assert season.results_fingerprint(results) != season.results_fingerprint(results, overrides)
 
 
 def test_results_fingerprint_is_blind_to_future_weeks_gaining_a_schedule():

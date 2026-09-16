@@ -35,6 +35,24 @@ results (538-style, K=20 with a margin-of-victory multiplier), and only the game
 the schedule are simulated. So a projected final score is `points already banked +
 simulated wins from here`, and the title odds move as the season plays out.
 
+Elo also drifts inside the simulation itself: each simulated future game updates the winner
+and loser's rating before the next simulated game prices off it, the same way a real season
+would, instead of every remaining game being judged against one rating frozen at kickoff.
+`RATINGS` (in `fantasy_auction_simulator.py`) is only a preseason snapshot, though, and the
+in-season update above only learns from game results, so a real shift in a team's strength
+(injury, trade, a rookie takes over) can lag for weeks. `elo_overrides.json` — committed,
+like `draft_state.json` — lets you hand the model a fresher number:
+
+```sh
+python3 season.py --set-elo SF=1610 MIA=1390 --elo-week 3   # ratings take effect entering week 3
+```
+
+Each entry is `{"week": N, "ratings": {...}}`; `elo_through` swaps in the listed teams'
+ratings right before week `N`'s games are processed (or applies them immediately, if `N` is
+already in the past) and lets the normal in-season update continue from there. A snapshot of
+an earlier week only sees overrides due by then, so a later refresh doesn't rewrite how the
+odds looked at the time.
+
 The backend exposes the same data to the UI:
 
 - `GET /api/season` — leaderboard, projections, week-by-week history, and every game.
