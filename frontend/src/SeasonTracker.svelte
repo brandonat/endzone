@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import LineChart from './LineChart.svelte';
-  import OutcomeChart from './OutcomeChart.svelte';
+  import ScoreDistributionChart from './ScoreDistributionChart.svelte';
   import ScheduleGrid from './ScheduleGrid.svelte';
 
   // Categorical slots 1-7 of the validated dark-mode palette, assigned in fixed
@@ -45,13 +45,14 @@
   const pointsSeries = $derived(seriesFrom('points'));
   const oddsSeries = $derived(seriesFrom('title_odds'));
 
-  const outcomeEntries = $derived(
+  const scoreDistribution = $derived(
     season
       ? season.leaderboard.map((entry) => ({
-          manager_id: entry.manager_id,
+          id: entry.manager_id,
           name: entry.name,
           color: colorOf.get(entry.manager_id),
-          distribution: entry.rank_distribution,
+          mean: entry.projected_final,
+          sd: entry.sd,
         }))
       : [],
   );
@@ -190,7 +191,7 @@
       </div>
 
       <div class="card">
-        <OutcomeChart title="Finish odds by player" entries={outcomeEntries} />
+        <ScoreDistributionChart title="Projected final points" series={scoreDistribution} />
       </div>
     </div>
   {/if}
