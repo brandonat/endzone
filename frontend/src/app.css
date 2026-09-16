@@ -7,8 +7,12 @@
   --text: #e8eaed;
   --muted: #a3aab5;
   --accent: #4f8cff;
+  --accent-rgb: 79, 140, 255;
   --up: #3fbf5f;
+  --up-soft: rgba(63, 191, 95, 0.18);
   --down: #e05555;
+  --down-soft: rgba(224, 85, 85, 0.18);
+  --tie-soft: rgba(163, 170, 181, 0.18);
 }
 
 * {

@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import LineChart from './LineChart.svelte';
+  import OutcomeChart from './OutcomeChart.svelte';
+  import ScheduleGrid from './ScheduleGrid.svelte';
 
   // Categorical slots 1-7 of the validated dark-mode palette, assigned in fixed
   // order and keyed to the manager, so a manager keeps their colour as ranks move.
@@ -43,23 +45,16 @@
   const pointsSeries = $derived(seriesFrom('points'));
   const oddsSeries = $derived(seriesFrom('title_odds'));
 
-  const finishedGames = $derived(season ? season.games.filter((g) => g.completed) : []);
-  const recentWeeks = $derived.by(() => {
-    const byWeek = new Map();
-    for (const game of finishedGames) {
-      if (!byWeek.has(game.week)) byWeek.set(game.week, []);
-      byWeek.get(game.week).push(game);
-    }
-    return [...byWeek.entries()].sort((a, b) => b[0] - a[0]);
-  });
-
-  function describe(game) {
-    if (game.tie) return `${game.home} and ${game.away} tied ${game.home_score}-${game.away_score}`;
-    const loser = game.winner === game.home ? game.away : game.home;
-    const high = Math.max(game.home_score, game.away_score);
-    const low = Math.min(game.home_score, game.away_score);
-    return `${game.winner} beat ${loser} ${high}-${low}`;
-  }
+  const outcomeEntries = $derived(
+    season
+      ? season.leaderboard.map((entry) => ({
+          manager_id: entry.manager_id,
+          name: entry.name,
+          color: colorOf.get(entry.manager_id),
+          distribution: entry.rank_distribution,
+        }))
+      : [],
+  );
 
   function recordOf(team) {
     const { w, l, t } = team.record;
@@ -184,30 +179,25 @@
       />
     </div>
 
-    <div class="card">
-      <LineChart
-        title="Title odds by week"
-        series={oddsSeries}
-        format={(v) => `${v.toFixed(0)}%`}
-        yMin={0}
-      />
+    <div class="chart-row">
+      <div class="card">
+        <LineChart
+          title="Title odds by week"
+          series={oddsSeries}
+          format={(v) => `${v.toFixed(0)}%`}
+          yMin={0}
+        />
+      </div>
+
+      <div class="card">
+        <OutcomeChart title="Finish odds by player" entries={outcomeEntries} />
+      </div>
     </div>
   {/if}
 
   <div class="card">
-    <h2>Results</h2>
-    {#if !finishedGames.length}
-      <p class="empty">No games have gone final yet.</p>
-    {:else}
-      {#each recentWeeks as [week, games] (week)}
-        <h3>Week {week}</h3>
-        <ul class="results">
-          {#each games as game (game.id)}
-            <li>{describe(game)}</li>
-          {/each}
-        </ul>
-      {/each}
-    {/if}
+    <h2>Schedule</h2>
+    <ScheduleGrid games={season.games} />
   </div>
 {:else if loading}
   <p class="empty">Loading season…</p>
@@ -274,25 +264,15 @@
     font-weight: 600;
   }
 
-  h3 {
-    font-size: 0.8rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin: 14px 0 6px;
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
   }
 
-  h3:first-of-type {
-    margin-top: 0;
-  }
-
-  .results {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.9rem;
+  @media (max-width: 720px) {
+    .chart-row {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
