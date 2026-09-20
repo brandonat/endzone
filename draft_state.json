@@ -2,7 +2,7 @@
   "managers": [
     {
       "id": "m1",
-      "name": "Bill"
+      "name": "Greg"
     },
     {
       "id": "m2",
@@ -22,7 +22,7 @@
     },
     {
       "id": "m6",
-      "name": "Greg"
+      "name": "Bill"
     },
     {
       "id": "m7",
