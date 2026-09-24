@@ -2,10 +2,13 @@
   // Full-season schedule: one row per NFL team (alphabetical), one column per
   // week. A cell shows the matchup (opponent, @ prefixed for road games) and,
   // once the game is final, the row team's own score first and a soft
-  // win/loss wash; a week the team doesn't play is a BYE.
-  let { games = [] } = $props();
+  // win/loss wash; a week the team doesn't play is a BYE. Pass `only` to show
+  // just those teams (e.g. one manager's roster) instead of the whole league.
+  let { games = [], only = null } = $props();
 
-  const teams = $derived([...new Set(games.flatMap((g) => [g.home, g.away]))].sort());
+  const teams = $derived(
+    only ? [...only].sort() : [...new Set(games.flatMap((g) => [g.home, g.away]))].sort(),
+  );
   const weeks = $derived([...new Set(games.map((g) => g.week))].sort((a, b) => a - b));
 
   const byTeamWeek = $derived.by(() => {

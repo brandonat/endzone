@@ -12,6 +12,14 @@
   let loading = $state(true);
   let refreshing = $state(false);
   let error = $state('');
+  // Manager whose leaderboard row was clicked; their teams' schedule is shown.
+  let selectedId = $state(null);
+
+  const selected = $derived(season?.leaderboard.find((e) => e.manager_id === selectedId) ?? null);
+
+  function toggleManager(id) {
+    selectedId = selectedId === id ? null : id;
+  }
 
   const colorOf = $derived.by(() => {
     const map = new Map();
@@ -127,7 +135,7 @@
   </div>
 
   <div class="card">
-    <h2>Leaderboard</h2>
+    <h2>Leaderboard <span class="muted hint">— click a manager to see their schedule</span></h2>
     <div class="table-scroll">
       <table>
         <thead>
@@ -143,7 +151,19 @@
         </thead>
         <tbody>
           {#each season.leaderboard as entry (entry.manager_id)}
-            <tr>
+            <tr
+              class="clickable"
+              class:selected={entry.manager_id === selectedId}
+              tabindex="0"
+              aria-expanded={entry.manager_id === selectedId}
+              onclick={() => toggleManager(entry.manager_id)}
+              onkeydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggleManager(entry.manager_id);
+                }
+              }}
+            >
               <td>{entry.rank}</td>
               <td>
                 <span class="swatch" style="background: {colorOf.get(entry.manager_id)}"></span>
@@ -169,6 +189,19 @@
       </table>
     </div>
   </div>
+
+  {#if selected}
+    <div class="card">
+      <div class="manager-head">
+        <h2>
+          <span class="swatch" style="background: {colorOf.get(selected.manager_id)}"></span>
+          {selected.name}'s schedule
+        </h2>
+        <button class="close" onclick={() => (selectedId = null)}>Close</button>
+      </div>
+      <ScheduleGrid games={season.games} only={selected.teams.map((t) => t.team)} />
+    </div>
+  {/if}
 
   {#if season.history.length}
     <div class="card">
@@ -263,6 +296,45 @@
 
   .team-tag {
     font-weight: 600;
+  }
+
+  .hint {
+    font-weight: 400;
+    font-size: 0.8rem;
+  }
+
+  tr.clickable {
+    cursor: pointer;
+  }
+
+  tr.clickable:hover td {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  tr.selected td {
+    background: rgba(var(--accent-rgb), 0.12);
+  }
+
+  tr.clickable:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .manager-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .manager-head h2 {
+    margin: 0;
+  }
+
+  .close {
+    padding: 5px 12px;
+    font-size: 0.85rem;
   }
 
   .chart-row {
