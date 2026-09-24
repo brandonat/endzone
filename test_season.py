@@ -281,3 +281,27 @@ def test_load_league_rejects_unknown_manager(tmp_path):
     path.write_text(json.dumps(state))
     with pytest.raises(ValueError):
         season.load_league(path)
+
+
+# The 2026 draft is final: these owners hold these teams for the whole season.
+# The committed draft_state.json is what the live dashboard reads, so pin it
+# here — a mislabelled manager slot (like the m1/m6 swap) fails CI
+# instead of silently crediting one manager's wins to another.
+SEASON_2026_ROSTERS = {
+    "Bill": {"BAL", "CLE", "HOU", "PHI"},
+    "Brandon": {"KC", "DET", "IND", "BUF"},
+    "Martin": {"LAC", "WAS", "GB", "SEA"},
+    "Klaus": {"NYJ", "CIN", "ATL", "TB", "ARI"},
+    "Greg": {"TEN", "LV", "CHI", "NO", "LAR"},
+    "Charlie": {"NE", "SF", "MIN", "PIT", "MIA"},
+    "Rahim": {"DEN", "JAX", "DAL", "NYG", "CAR"},
+}
+
+
+def test_committed_draft_state_matches_the_2026_season_rosters():
+    managers, team_owner = season.load_league()
+    rosters = {name: set() for name in managers.values()}
+    for team, manager_id in team_owner.items():
+        rosters[managers[manager_id]].add(team)
+    assert rosters == SEASON_2026_ROSTERS
+    assert len(team_owner) == 32

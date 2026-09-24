@@ -8,6 +8,11 @@ This is deliberately not part of the deployed app: it is the tool you run on
 draft night, paired with the standalone frontend in draftboard/. It reads and
 writes draft_state.json, which the deployed season tracker only ever reads.
 
+The 2026 draft is over, so DRAFT_LOCKED makes every write endpoint refuse:
+the board still loads read-only, but ownership can no longer be changed from
+the UI. If a correction is ever needed, edit draft_state.json by hand and
+update SEASON_2026_ROSTERS in test_season.py to match.
+
 The market board itself is not stored on disk: it is recomputed from
 fantasy_auction_simulator.market_snapshot() every time a client asks for it,
 using the persisted picks and a baseline board that is simulated once at
@@ -41,6 +46,9 @@ app.add_middleware(
 # The baseline board is the expensive Monte-Carlo step; it does not depend on
 # draft picks, so it is computed once at startup and reused for every request.
 BASELINE_BOARD = sim.build_baseline_board()
+
+# The season's rosters are final; see the module docstring.
+DRAFT_LOCKED = True
 
 # Guards read-modify-write access to draft_state.json across concurrent requests.
 _state_lock = threading.Lock()
@@ -90,6 +98,14 @@ def _save_state(state: dict) -> None:
     tmp_path.replace(DRAFT_STATE_PATH)
 
 
+def _refuse_if_locked() -> None:
+    if DRAFT_LOCKED:
+        raise HTTPException(
+            status_code=423,
+            detail="The draft is locked for the season; rosters can only be changed in draft_state.json",
+        )
+
+
 def _manager_summaries(managers: List[dict], picks: List[dict]) -> List[dict]:
     picks_by_manager: Dict[str, List[dict]] = {m["id"]: [] for m in managers}
     for pick in picks:
@@ -126,6 +142,7 @@ def get_teams() -> dict:
 
 @app.put("/api/managers/{manager_id}")
 def rename_manager(manager_id: str, body: ManagerRename) -> dict:
+    _refuse_if_locked()
     name = body.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Manager name cannot be empty")
@@ -142,6 +159,7 @@ def rename_manager(manager_id: str, body: ManagerRename) -> dict:
 
 @app.post("/api/pick")
 def post_pick(pick: PickIn) -> dict:
+    _refuse_if_locked()
     team = pick.team.upper()
     if team not in BASELINE_BOARD:
         raise HTTPException(status_code=400, detail=f"Unknown team: {team}")
@@ -159,6 +177,7 @@ def post_pick(pick: PickIn) -> dict:
 
 @app.delete("/api/pick/{team}")
 def delete_pick(team: str) -> dict:
+    _refuse_if_locked()
     team = team.upper()
     with _state_lock:
         state = _load_state()
