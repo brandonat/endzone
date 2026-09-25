@@ -12,6 +12,12 @@
   let loading = $state(true);
   let refreshing = $state(false);
   let error = $state('');
+  // Manager whose leaderboard row is expanded to show their teams' schedule.
+  let selectedId = $state(null);
+
+  function toggleManager(id) {
+    selectedId = selectedId === id ? null : id;
+  }
 
   const colorOf = $derived.by(() => {
     const map = new Map();
@@ -127,7 +133,7 @@
   </div>
 
   <div class="card">
-    <h2>Leaderboard</h2>
+    <h2>Leaderboard <span class="muted hint">— click a manager to expand their schedule</span></h2>
     <div class="table-scroll">
       <table>
         <thead>
@@ -143,7 +149,19 @@
         </thead>
         <tbody>
           {#each season.leaderboard as entry (entry.manager_id)}
-            <tr>
+            <tr
+              class="clickable"
+              class:selected={entry.manager_id === selectedId}
+              tabindex="0"
+              aria-expanded={entry.manager_id === selectedId}
+              onclick={() => toggleManager(entry.manager_id)}
+              onkeydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggleManager(entry.manager_id);
+                }
+              }}
+            >
               <td>{entry.rank}</td>
               <td>
                 <span class="swatch" style="background: {colorOf.get(entry.manager_id)}"></span>
@@ -164,6 +182,17 @@
                 </ul>
               </td>
             </tr>
+            {#if entry.manager_id === selectedId}
+              <tr class="expanded">
+                <td colspan="7">
+                  <!-- width: 0 + min-width: 100% stops the wide grid from
+                       stretching the leaderboard; it scrolls inside instead. -->
+                  <div class="expanded-body">
+                    <ScheduleGrid games={season.games} only={entry.teams.map((t) => t.team)} />
+                  </div>
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>
@@ -263,6 +292,39 @@
 
   .team-tag {
     font-weight: 600;
+  }
+
+  .hint {
+    font-weight: 400;
+    font-size: 0.8rem;
+  }
+
+  tr.clickable {
+    cursor: pointer;
+  }
+
+  tr.clickable:hover td {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  tr.selected td {
+    background: rgba(var(--accent-rgb), 0.12);
+    border-bottom-color: transparent;
+  }
+
+  tr.clickable:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  tr.expanded > td {
+    padding: 4px 0 14px 12px;
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .expanded-body {
+    width: 0;
+    min-width: 100%;
   }
 
   .chart-row {
