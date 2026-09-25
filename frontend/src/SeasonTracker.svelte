@@ -12,10 +12,8 @@
   let loading = $state(true);
   let refreshing = $state(false);
   let error = $state('');
-  // Manager whose leaderboard row was clicked; their teams' schedule is shown.
+  // Manager whose leaderboard row is expanded to show their teams' schedule.
   let selectedId = $state(null);
-
-  const selected = $derived(season?.leaderboard.find((e) => e.manager_id === selectedId) ?? null);
 
   function toggleManager(id) {
     selectedId = selectedId === id ? null : id;
@@ -135,7 +133,7 @@
   </div>
 
   <div class="card">
-    <h2>Leaderboard <span class="muted hint">— click a manager to see their schedule</span></h2>
+    <h2>Leaderboard <span class="muted hint">— click a manager to expand their schedule</span></h2>
     <div class="table-scroll">
       <table>
         <thead>
@@ -184,24 +182,22 @@
                 </ul>
               </td>
             </tr>
+            {#if entry.manager_id === selectedId}
+              <tr class="expanded">
+                <td colspan="7">
+                  <!-- width: 0 + min-width: 100% stops the wide grid from
+                       stretching the leaderboard; it scrolls inside instead. -->
+                  <div class="expanded-body">
+                    <ScheduleGrid games={season.games} only={entry.teams.map((t) => t.team)} />
+                  </div>
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>
     </div>
   </div>
-
-  {#if selected}
-    <div class="card">
-      <div class="manager-head">
-        <h2>
-          <span class="swatch" style="background: {colorOf.get(selected.manager_id)}"></span>
-          {selected.name}'s schedule
-        </h2>
-        <button class="close" onclick={() => (selectedId = null)}>Close</button>
-      </div>
-      <ScheduleGrid games={season.games} only={selected.teams.map((t) => t.team)} />
-    </div>
-  {/if}
 
   {#if season.history.length}
     <div class="card">
@@ -313,6 +309,7 @@
 
   tr.selected td {
     background: rgba(var(--accent-rgb), 0.12);
+    border-bottom-color: transparent;
   }
 
   tr.clickable:focus-visible {
@@ -320,21 +317,14 @@
     outline-offset: -2px;
   }
 
-  .manager-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
+  tr.expanded > td {
+    padding: 4px 0 14px 12px;
+    box-shadow: inset 3px 0 0 var(--accent);
   }
 
-  .manager-head h2 {
-    margin: 0;
-  }
-
-  .close {
-    padding: 5px 12px;
-    font-size: 0.85rem;
+  .expanded-body {
+    width: 0;
+    min-width: 100%;
   }
 
   .chart-row {
